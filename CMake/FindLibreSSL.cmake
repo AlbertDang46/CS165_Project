@@ -74,6 +74,8 @@ set(_LIBRESSL_ROOT_HINTS
     ENV LIBRESSL_ROOT_DIR
 )
 
+message("ROOT DIR: ${LIBRESSL_ROOT_DIR}")
+
 # Set Paths
 if (WIN32)
     file(TO_CMAKE_PATH "$ENV{PROGRAMFILES}" _programfiles)
@@ -92,6 +94,8 @@ set(_LIBRESSL_ROOT_HINTS_AND_PATHS
     HINTS ${_LIBRESSL_ROOT_HINTS}
     PATHS ${_LIBRESSL_ROOT_PATHS}
 )
+
+message("ROOT HINTS AND PATHS: ${_LIBRESSL_ROOT_HINTS_AND_PATHS}")
 
 # Find Include Path
 find_path(LIBRESSL_INCLUDE_DIR
@@ -159,6 +163,8 @@ if(LIBRESSL_INCLUDE_DIR AND EXISTS "${LIBRESSL_INCLUDE_DIR}/openssl/opensslv.h")
     set(LIBRESSL_VERSION "${LIBRESSL_VERSION_MAJOR}.${LIBRESSL_VERSION_MINOR}.${LIBRESSL_VERSION_REVISION}")
 
 endif()
+
+message("INCLUDE DIR: ${LIBRESSL_INCLUDE_DIR}")
 
 # Set Find Package Arguments
 find_package_handle_standard_args(LibreSSL
