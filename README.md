@@ -1,7 +1,7 @@
 ## TLS Cache
 ------------------------
 
-This repository contains the starter code for the CS165 TLS Cache project. The file structure is as follows:
+This repository contains the starter code for the CS165 project. The directory structure is as follows:
 ```
 certificates/	// Contains CA and server certificates.
 scripts/	// Helper scripts.
@@ -10,6 +10,7 @@ cmake/		// CMake find script.
 extern/		// Required third party tools and libraries- LibreSSL & CMake.
 licenses/	// Open source licenses for code used.
 ```
+
 
 ### Steps
 -------------------------
@@ -37,14 +38,15 @@ $ ./build/client 127.0.0.1 9999
 
 ### How to build and run code
 --------------------------
-1. Add your code in src/client or src/server. 
-2. Go to build/
-3. `$ make`
+1. Add your code in `src/client` or `src/server`. 
+2. Go to `build/`
+3. Run `make`
+
 
 ### Scripts included
 --------------------------
-1. setup.sh should be run exactly once after you have downloaded code, and never again. It extracts and builds the dependencies in extern/, and builds and links the code in src/ with LibreSSL.
-2. reset.sh reverts the directory to its initial state. It does not touch src/ or certificates/.
+1. `setup.sh` should be run exactly once after you have downloaded code, and never again. It extracts and builds the dependencies in extern/, and builds and links the code in src/ with LibreSSL.
+2. `reset.sh` reverts the directory to its initial state. It does not touch `src/` or `certificates/`. Run `make clean` in `certificates/` to delete the generated certificates.
 
 
 ### FAQ
@@ -58,7 +60,7 @@ server.crt	// Server's certificate, signed by the root CA using an intermediate 
 server.key	// Server's private key
 ```
 
-2. The given starter code has only two files, `server/server.c` and `client/client.c`. I want to add another file to implement the proxy.
+2. The given starter code has only two files, `server/server.c` and `client/client.c`. I want to add another file to implement the proxy. How do I do it?
 
 This project uses CMake to build code, and therefore has a `CMakeLists.txt` file located in `src/`. You can read the file as follows:
 ```
