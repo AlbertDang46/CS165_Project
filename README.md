@@ -27,13 +27,12 @@ $ make
 3. The plaintext server and client can be used as follows:
 ```
 $ cd TLSCache
-$ cd build
 
 Run the server:
-$ ./build/server 9999
+$ ./build/src/server 9999
 
 Run the client (in another terminal):
-$ ./build/client 127.0.0.1 9999
+$ ./build/src/client 127.0.0.1 9999
 ```
 
 ### How to build and run code
@@ -78,5 +77,9 @@ If you want to create more binaries, you can copy the three lines explained abov
 
 ### Useful(!) Resources 
 --------------------------
-1. LibTLS tutorial: https://github.com/bob-beck/libtls/blob/master/TUTORIAL.md
-2. On Certificate Authorities: https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
+1. libTLS tutorial: https://github.com/bob-beck/libtls/blob/master/TUTORIAL.md
+2. Official libTLS documentation: https://man.openbsd.org/tls\_init.3
+3. LinuxConf AU 2017 slides: http://www.openbsd.org/papers/linuxconfau2017-libtls/
+4. On Certificate Authorities: https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
+
+
