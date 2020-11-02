@@ -9,7 +9,7 @@ src/		// Client and Server code. Add your code here.
 cmake/		// CMake find script. 
 extern/		// Required third party tools and libraries- LibreSSL & CMake.
 licenses/	// Open source licenses for code used.
-***Ignore the solution folder. Exist only because it holds some cmake dependencies.
+- ***Ignore the solution folder. Exist only because it holds some cmake dependencies.
 ```
 
 
