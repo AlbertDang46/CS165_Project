@@ -2,14 +2,14 @@
 ------------------------
 
 This repository contains the starter code for the CS165 project/assignment. The directory structure is as follows:
-```
+```diff
 certificates/	// Contains CA and server certificates. And are not required for only socket programming.
 scripts/	// Helper scripts.
 src/		// Client and Server code. Add your code here.
 cmake/		// CMake find script. 
 extern/		// Required third party tools and libraries- LibreSSL & CMake.
 licenses/	// Open source licenses for code used.
-- ***Ignore the solution folder. Exist only because it holds some cmake dependencies.
+- *Ignore the solution folder. Exist only because it holds some cmake dependencies.
 ```
 
 
