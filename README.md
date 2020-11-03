@@ -20,6 +20,8 @@ licenses/	// Open source licenses for code used.
 ```
 $ cd TCPSocket_iii
 $ source scripts/setup.sh
+$ cd certificates
+$ make
 
 ```
 3. The plaintext server and client can be used as follows:
