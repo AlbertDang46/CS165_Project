@@ -1,15 +1,14 @@
-## TCP Socket - TLS Structure (ARCH)
+## TCPSocket_iii -- TLS Cache
 ------------------------
 
-This repository contains the starter code for the CS165 project/assignment. The directory structure is as follows:
-```diff
-certificates/	// Contains CA and server certificates. And are not required for only socket programming.
+This repository contains the starter code for the CS165 project. The directory structure is as follows:
+```
+certificates/	// Contains CA and server certificates.
 scripts/	// Helper scripts.
 src/		// Client and Server code. Add your code here.
 cmake/		// CMake find script. 
 extern/		// Required third party tools and libraries- LibreSSL & CMake.
 licenses/	// Open source licenses for code used.
-- *Ignore the solution folder. Exist only because it holds some cmake dependencies.
 ```
 
 
@@ -20,9 +19,10 @@ licenses/	// Open source licenses for code used.
 ```
 $ cd TCPSocket_iii
 $ source scripts/setup.sh
+
+Generate the server and client certificates
 $ cd certificates
 $ make
-
 ```
 3. The plaintext server and client can be used as follows:
 ```
@@ -77,8 +77,9 @@ If you want to create more binaries, you can copy the three lines explained abov
 
 ### Useful(!) Resources 
 --------------------------
-1.  CRC32 function: https://web.mit.edu/freebsd/head/sys/libkern/crc32.c
-2. RC4 Library: https://man.openbsd.org/RC4.3
-3. Please go over the res shared in the lab sessions, and slack lab channel.
-4. IP Linux Implementation: https://man7.org/linux/man-pages/man7/ip.7.html
-5. C Library stdlib.h: https://www.tutorialspoint.com/c_standard_library/stdlib_h.html
+1. libTLS tutorial: https://github.com/bob-beck/libtls/blob/master/TUTORIAL.md
+2. Official libTLS documentation: https://man.openbsd.org/tls\_init.3
+3. LinuxConf AU 2017 slides: http://www.openbsd.org/papers/linuxconfau2017-libtls/
+4. On Certificate Authorities: https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
+
+
