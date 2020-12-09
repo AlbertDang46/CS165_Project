@@ -39,14 +39,74 @@
 #include <string.h>
 #include <unistd.h>
 #include <tls.h>
+#include "murmur3.h"
 
 
-const char server_dir[] = "./server_files/";
+const unsigned int NUM_PROXIES = 6;
+const char *PROXY_NAMES[] = {"one", "two", "three", "four", "five", "six"};
+const char PROXY_DIR[] = "./proxy_files/";
+const unsigned int NUM_BLOOM_BITS = 303658;
+const unsigned int NUM_BLOOM_INTS = 10000;
+const unsigned int NUM_BLOOM_HASHES = 5;
+
+static void insert_bloom_filter(unsigned int bloom_filter[], unsigned int num_hashes, unsigned int num_bits, char str[]) {
+	unsigned int int_bit_size = sizeof(unsigned int) * 8;
+	
+	unsigned int i;
+	for (i = 0; i < num_hashes; i++) {
+		uint32_t hash[4];
+		MurmurHash3_x86_32(str, strlen(str), i + 46, hash);
+		unsigned int index = (*hash % num_bits) / int_bit_size;
+		bloom_filter[index] |= (1 << (*hash % int_bit_size));	
+	}
+}
+
+static unsigned int search_bloom_filter(unsigned int bloom_filter[], unsigned int num_hashes, unsigned int num_bits, char str[]) {
+	unsigned int int_bit_size = sizeof(unsigned int) * 8;
+	
+	unsigned int i;
+	for (i = 0; i < num_hashes; i++) {
+		uint32_t hash[4];
+		MurmurHash3_x86_32(str, strlen(str), i + 46, hash);
+		unsigned int index = (*hash % num_bits) / int_bit_size;
+		if ((bloom_filter[index] & (1 << (*hash % int_bit_size))) != 1)
+			return 0;
+	}
+
+	return 1;
+}
+
+static struct tls* setupTLSClient() {
+	struct tls_config *cfg = NULL;
+        struct tls *ctx = NULL;
+
+        if (tls_init() != 0)
+                err(1, "tls_init:");
+        printf("Initialized TLS\n");
+
+        if ((cfg = tls_config_new()) == NULL)
+                err(1, "tls_config_new:");
+        printf("Got TLS config\n");
+
+        if (tls_config_set_ca_file(cfg, "root.pem") != 0)
+                err(1, "tls_config_set_ca_file:");
+        printf("Set root certificate\n");
+
+        if ((ctx = tls_client()) == NULL)
+                err(1, "tls_client:");
+        printf("Got TLS client\n");
+
+        if (tls_configure(ctx, cfg) != 0)
+                err(1, "tls_configure: %s", tls_error(ctx));
+        printf("Configured TLS client with TLS config\n");
+
+	return ctx;
+}
 
 static void usage()
 {
 	extern char * __progname;
-	fprintf(stderr, "usage: %s -port portnumber\n", __progname);
+	fprintf(stderr, "usage: %s -port portnumber -servername:serverportnumber\n", __progname);
 	exit(1);
 }
 
@@ -56,11 +116,14 @@ static void kidhandler(int signum) {
 }
 
 
-int main(int argc,  char *argv[])
+int main(int argc, char *argv[])
 {
-	if (argc != 3 || strcmp(argv[1], "-port") != 0)
+	if (argc != 4 || strcmp(argv[1], "-port") != 0)
                 usage();
-	
+
+	unsigned int bloom_filters[NUM_PROXIES][NUM_BLOOM_INTS];
+	memset(bloom_filters, 0, sizeof(bloom_filters));
+
 	struct tls_config *cfg = NULL;
 	struct tls *ctx = NULL, *cctx = NULL;
 	uint8_t *mem;
@@ -84,21 +147,21 @@ int main(int argc,  char *argv[])
 		err(1, "tls_load_file(server):");
 	if (tls_config_set_cert_mem(cfg, mem, mem_len) != 0)
 		err(1, "tls_config_set_cert_mem:");
-	printf("Set server certificate\n");	
+	printf("Set proxy server certificate\n");	
 
 	if ((mem = tls_load_file("server.key", &mem_len, NULL)) == NULL)
 		err(1, "tls_load_file(serverkey):");
 	if (tls_config_set_key_mem(cfg, mem, mem_len) != 0)
 		err(1, "tls_config_set_key_mem:");
-	printf("Set server private key\n");	
+	printf("Set proxy server private key\n");	
 
 	if ((ctx = tls_server()) == NULL)
 		err(1, "tls_server:");
-	printf("Got TLS server\n");
+	printf("Got TLS proxy server\n");
 
 	if (tls_configure(ctx, cfg) != 0)
 		err(1, "tls_configure: %s", tls_error(ctx));
-	printf("Configured TLS server with TLS config\n");
+	printf("Configured TLS proxy server with TLS config\n");
 
 
 	struct sockaddr_in sockname, client;
@@ -168,7 +231,7 @@ int main(int argc,  char *argv[])
                 err(1, "sigaction failed");
 
 
-	printf("Server up and listening for connections on port %u\n", port);
+	printf("Proxy server up and listening for connections on port %u\n", port);
 	for(;;) {
 		int clientsd;
 		clientlen = sizeof(&client);
@@ -193,33 +256,79 @@ int main(int argc,  char *argv[])
 			printf("\n");
 
 			char request[255];
+			char *proxy_name;
+			char *object_name;
 			memset(request, 0, sizeof(request));
 			
 			if (tls_read(cctx, request, sizeof(request)) < 0)
 				err(1, "tls_read: %s", tls_error(cctx));
 			
-			printf("Received request for server for %s\n", request); 
+			proxy_name = strtok(request, " ");
+			object_name = strtok(NULL, " ");
+			printf("Received request for proxy server %s for %s\n", proxy_name, object_name); 
 
-			FILE *fp;
-			char filename[255];
-			char content[255];
-			memset(filename, 0, sizeof(filename));
-			memset(content, 0, sizeof(content));
-			strcpy(filename, server_dir);
-			strcat(filename, request);
-	 
-			if ((fp = fopen(filename, "r")) == NULL)
-				err(1, "File not found!");
-
-			printf("Sent file content:\n");
-			while (fread(content, sizeof(char), sizeof(content), fp) > 0) {
-				if (tls_write(cctx, content, strlen(content)) < 0)
-					err(1, "tls_write: %s", tls_error(ctx));
-				printf("%s", content);
-				memset(content, 0, sizeof(content));
+			unsigned int filter_index;
+			for (filter_index = 0; filter_index < NUM_PROXIES; filter_index++) {
+				if (strcmp(PROXY_NAMES[filter_index], proxy_name) == 0)
+					break;
 			}
-			fclose(fp);
-			printf("\n");	
+			
+			if (search_bloom_filter(&bloom_filters[filter_index][0], NUM_BLOOM_HASHES, NUM_BLOOM_BITS, object_name) == 1) {
+				char deny[] = "****black-listed****";
+				if (tls_write(cctx, deny, strlen(deny)) < 0)
+					err(1, "tls_write: %s", tls_error(cctx));
+				printf("Request was for black-listed object. Denied request\n");
+			} else {
+				FILE *fp;
+				char filename[255];
+				char content[255];
+				memset(filename, 0, sizeof(filename));
+				memset(content, 0, sizeof(content));
+				strcpy(filename, PROXY_DIR);
+				strcat(filename, object_name);
+
+				if ((fp = fopen(filename, "r")) == NULL) {
+					char *server_name;
+					char *server_port;
+
+					server_name = strtok(argv[3], ":");
+					server_name++;
+					server_port = strtok(NULL, ":");
+
+					struct tls *server_ctx = setupTLSClient();
+					printf("%s | %s\n", server_name, server_port);
+					if (tls_connect(server_ctx, server_name, server_port) != 0)
+			                        err(1, "tls_connect: %s", tls_error(ctx));
+                			printf("Connected to server\n");
+                			printf("\n"); 
+
+					if (tls_write(server_ctx, object_name, strlen(object_name)) < 0)
+			                        err(1, "tls_write: %s", tls_error(ctx));
+			                printf("Sent request to server %s for %s\n", server_name, object_name);
+			
+					fp = fopen(filename, "a+");
+					char response[255];
+					memset(response, 0, sizeof(response));
+			                printf("Server response:\n");
+			                while (tls_read(server_ctx, response, sizeof(response)) > 0){
+						fwrite(response, sizeof(char), sizeof(response), fp);
+			                        printf("%s", response);
+			                        memset(response, 0, sizeof(response));
+			                }
+			                fseek(fp, 0, SEEK_SET);
+					printf("\n");
+				}
+	
+				printf("Sent file content:\n");
+				while (fread(content, sizeof(char), sizeof(content), fp) > 0) {
+					if (tls_write(cctx, content, strlen(content)) < 0)
+						err(1, "tls_write: %s", tls_error(cctx));
+					printf("%s", content);
+					memset(content, 0, sizeof(content));
+				}
+				fclose(fp);
+				printf("\n");
+			}
 
 			if (tls_close(cctx) != 0)
 				err(1, "tls_close: %s", tls_error(cctx));
@@ -229,7 +338,7 @@ int main(int argc,  char *argv[])
 			printf("Freed TLS client\n"); 
 
 			tls_free(ctx);
-			printf("Freed TLS server\n");
+			printf("Freed TLS proxy server\n");
 
 			tls_config_free(cfg);
 			printf("Freed TLS config\n");

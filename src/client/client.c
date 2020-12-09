@@ -30,97 +30,114 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <tls.h>
+#include "murmur3.h"
 
 
+const unsigned int NUM_PROXIES = 6;
+const char *PROXY_NAMES[] = {"one", "two", "three", "four", "five", "six"};
 
 static void usage()
 {
 	extern char * __progname;
-	fprintf(stderr, "usage: %s ipaddress portnumber\n", __progname);
+	fprintf(stderr, "usage: %s -port proxyportnumber filename\n", __progname);
 	exit(1);
 }
 
 int main(int argc, char *argv[])
 {
-	struct sockaddr_in server_sa;
-	char buffer[80], *ep;
-	size_t maxread;
-	ssize_t r, rc;
-	u_short port;
-	u_long p;
-	int sd;
+	if (argc != 4 || strcmp(argv[1], "-port") != 0)
+        	usage();
 
-	if (argc != 3)
-		usage();
+	FILE *fp;
+  	uint32_t hashes[NUM_PROXIES];
+        char object_name[255];
+        char request[255];
+        char response[255];
+        memset(object_name, 0, sizeof(object_name));
+        memset(request, 0, sizeof(request));
+        memset(response, 0, sizeof(response));
 
-        p = strtoul(argv[2], &ep, 10);
-        if (*argv[2] == '\0' || *ep != '\0') {
-		/* parameter wasn't a number, or was empty */
-		fprintf(stderr, "%s - not a number\n", argv[2]);
-		usage();
-	}
-        if ((errno == ERANGE && p == ULONG_MAX) || (p > USHRT_MAX)) {
-		/* It's a number, but it either can't fit in an unsigned
-		 * long, or is too big for an unsigned short
-		 */
-		fprintf(stderr, "%s - value out of range\n", argv[2]);
-		usage();
-	}
-	/* now safe to do this */
-	port = p;
+        if((fp = fopen(argv[3], "r")) == NULL)
+                err(1, "File not found!");
 
-	/*
-	 * first set up "server_sa" to be the location of the server
-	 */
-	memset(&server_sa, 0, sizeof(server_sa));
-	server_sa.sin_family = AF_INET;
-	server_sa.sin_port = htons(port);
-	server_sa.sin_addr.s_addr = inet_addr(argv[1]);
-	if (server_sa.sin_addr.s_addr == INADDR_NONE) {
-		fprintf(stderr, "Invalid IP address %s\n", argv[1]);
-		usage();
-	}
+        while (fscanf(fp, "%s", object_name) > 0) {			// New TLS connection for each object requested in file	
+		struct tls_config *cfg = NULL;
+		struct tls *ctx = NULL;
+	
+		if (tls_init() != 0)
+			err(1, "tls_init:");
+		printf("Initialized TLS\n");
+	
+		if ((cfg = tls_config_new()) == NULL)
+			err(1, "tls_config_new:");
+		printf("Got TLS config\n");
+	
+		if (tls_config_set_ca_file(cfg, "root.pem") != 0)
+			err(1, "tls_config_set_ca_file:");
+		printf("Set root certificate\n");
+	
+		if ((ctx = tls_client()) == NULL)
+			err(1, "tls_client:");
+		printf("Got TLS client\n");
+	
+		if (tls_configure(ctx, cfg) != 0)
+			err(1, "tls_configure: %s", tls_error(ctx));
+		printf("Configured TLS client with TLS config\n");
+	
+		if (tls_connect(ctx, "localhost", argv[2]) != 0)
+			err(1, "tls_connect: %s", tls_error(ctx));
+		printf("Connected to proxy server\n");
+		printf("\n");
 
-	/* ok now get a socket. we don't care where... */
-	if ((sd=socket(AF_INET,SOCK_STREAM,0)) == -1)
-		err(1, "socket failed");
+		printf("Computing hashes for each objectname|proxyname\n");
+		unsigned int i;
+		for (i = 0; i < NUM_PROXIES; i++) {			// Calculate hashes for object_name.PROXY_NAMES[i]
+			char str[255];
+			memset(str, 0, sizeof(str));
+			strcpy(str, object_name);
+			strcat(str, PROXY_NAMES[i]);
+			MurmurHash3_x86_32(str, strlen(str), 42, &hashes[i]);
+			printf("%s|%s: %x\n", object_name, PROXY_NAMES[i], hashes[i]); 
+		}				
+		printf("\n");		
 
-	/* connect the socket to the server described in "server_sa" */
-	if (connect(sd, (struct sockaddr *)&server_sa, sizeof(server_sa))
-	    == -1)
-		err(1, "connect failed");
+		unsigned int max_index = 0;
+		for (i = 0; i < NUM_PROXIES; i++) {			// Get index of proxy that produced the highest hash value
+			if (hashes[i] > hashes[max_index])
+				max_index = i;
+		}
 
-	/*
-	 * finally, we are connected. find out what magnificent wisdom
-	 * our server is going to send to us - since we really don't know
-	 * how much data the server could send to us, we have decided
-	 * we'll stop reading when either our buffer is full, or when
-	 * we get an end of file condition from the read when we read
-	 * 0 bytes - which means that we pretty much assume the server
-	 * is going to send us an entire message, then close the connection
-	 * to us, so that we see an end-of-file condition on the read.
-	 *
-	 * we also make sure we handle EINTR in case we got interrupted
-	 * by a signal.
-	 */
-	r = -1;
-	rc = 0;
-	maxread = sizeof(buffer) - 1; /* leave room for a 0 byte */
-	while ((r != 0) && rc < maxread) {
-		r = read(sd, buffer + rc, maxread - rc);
-		if (r == -1) {
-			if (errno != EINTR)
-				err(1, "read failed");
-		} else
-			rc += r;
-	}
-	/*
-	 * we must make absolutely sure buffer has a terminating 0 byte
-	 * if we are to use it as a C string
-	 */
-	buffer[rc] = '\0';
+		strcpy(request, PROXY_NAMES[max_index]);		// Create request with form "PROXY_NAME OBJECT_NAME"
+		strcat(request, " ");
+		strcat(request, object_name); 
 
-	printf("Server sent:  %s",buffer);
-	close(sd);
+		if (tls_write(ctx, request, strlen(request)) < 0)
+			err(1, "tls_write: %s", tls_error(ctx));
+		printf("Sent request to proxy server %s for %s\n", PROXY_NAMES[max_index], object_name);
+
+		printf("Proxy server response:\n");
+		while (tls_read(ctx, response, sizeof(response)) > 0){
+			printf("%s", response);
+			memset(response, 0, sizeof(response));
+		}
+		printf("\n");
+
+		if (tls_close(ctx) != 0)
+			err(1, "tls_close: %s", tls_error(ctx));
+		printf("Closed TLS client\n");
+	
+		tls_free(ctx);
+		printf("Freed TLS client\n");
+	
+		tls_config_free(cfg);
+		printf("Freed TLS config\n");
+		printf("\n");
+
+		memset(object_name, 0, sizeof(object_name));
+       		memset(request, 0, sizeof(request));
+                memset(response, 0, sizeof(response));
+        }
+
 	return(0);
 }
