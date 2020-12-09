@@ -45,6 +45,7 @@
 const unsigned int NUM_PROXIES = 6;
 const char *PROXY_NAMES[] = {"one", "two", "three", "four", "five", "six"};
 const char PROXY_DIR[] = "./proxy_files/";
+const char BLACKLIST_FILENAME[] = "Blacklisted_Objects";
 const unsigned int NUM_BLOOM_BITS = 303658;
 const unsigned int NUM_BLOOM_INTS = 10000;
 const unsigned int NUM_BLOOM_HASHES = 5;
@@ -69,7 +70,7 @@ static unsigned int search_bloom_filter(unsigned int bloom_filter[], unsigned in
 		uint32_t hash[4];
 		MurmurHash3_x86_32(str, strlen(str), i + 46, hash);
 		unsigned int index = (*hash % num_bits) / int_bit_size;
-		if ((bloom_filter[index] & (1 << (*hash % int_bit_size))) != 1)
+		if ((bloom_filter[index] & (1 << (*hash % int_bit_size))) == 0)
 			return 0;
 	}
 
@@ -123,6 +124,40 @@ int main(int argc, char *argv[])
 
 	unsigned int bloom_filters[NUM_PROXIES][NUM_BLOOM_INTS];
 	memset(bloom_filters, 0, sizeof(bloom_filters));
+
+	char blacklist_filename[255];
+	strcpy(blacklist_filename, PROXY_DIR);
+	strcat(blacklist_filename, BLACKLIST_FILENAME);
+	FILE *blacklist;
+	blacklist = fopen(blacklist_filename, "r");
+
+	printf("Entering blacklisted objects into bloom filter:\n");
+	char blacklisted_object[255];
+	memset(blacklisted_object, 0, sizeof(blacklisted_object));
+	while (fscanf(blacklist, "%s", blacklisted_object) > 0) {
+	        uint32_t hashes[NUM_PROXIES];
+		unsigned int i;
+		for (i = 0; i < NUM_PROXIES; i++) {                     // Calculate hashes for object_name.PROXY_NAMES[i]
+                        char str[255];
+                        memset(str, 0, sizeof(str));
+                        strcpy(str, blacklisted_object);
+                        strcat(str, PROXY_NAMES[i]);
+                        MurmurHash3_x86_32(str, strlen(str), 42, &hashes[i]);
+                        printf("%s|%s: %x\n", blacklisted_object, PROXY_NAMES[i], hashes[i]);
+                }
+
+                unsigned int max_index = 0;
+                for (i = 0; i < NUM_PROXIES; i++) {                     // Get index of proxy that produced the highest hash value
+                        if (hashes[i] > hashes[max_index])
+                                max_index = i;
+                }
+		insert_bloom_filter(&bloom_filters[max_index][0], NUM_BLOOM_HASHES, NUM_BLOOM_BITS, blacklisted_object);		
+		printf("Entered %s into proxy %s's bloom filter\n", blacklisted_object, PROXY_NAMES[max_index]);
+	        printf("\n");
+		memset(blacklisted_object, 0, sizeof(blacklisted_object));
+	}
+	fclose(blacklist);
+	printf("\n");
 
 	struct tls_config *cfg = NULL;
 	struct tls *ctx = NULL, *cctx = NULL;
@@ -274,10 +309,11 @@ int main(int argc, char *argv[])
 			}
 			
 			if (search_bloom_filter(&bloom_filters[filter_index][0], NUM_BLOOM_HASHES, NUM_BLOOM_BITS, object_name) == 1) {
-				char deny[] = "****black-listed****";
+				char deny[] = "****black-listed****\n";
 				if (tls_write(cctx, deny, strlen(deny)) < 0)
 					err(1, "tls_write: %s", tls_error(cctx));
-				printf("Request was for black-listed object. Denied request\n");
+				printf("Request was for black-listed object %s. Denied request\n", object_name);
+				printf("\n");
 			} else {
 				FILE *fp;
 				char filename[255];
