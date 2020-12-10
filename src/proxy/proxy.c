@@ -50,6 +50,13 @@ const unsigned int NUM_BLOOM_BITS = 303658;
 const unsigned int NUM_BLOOM_INTS = 10000;
 const unsigned int NUM_BLOOM_HASHES = 5;
 
+/****
+ * Insert a string into a bloom filter
+ * bloom_filter: An array of ints. Each bit in each int is a slot in the bloom filter
+ * num_hashes: Number of hash functions
+ * num_bits: Number of slots in the bloom filter
+ * return: Nothing
+ ****/
 static void insert_bloom_filter(unsigned int bloom_filter[], unsigned int num_hashes, unsigned int num_bits, char str[]) {
 	unsigned int int_bit_size = sizeof(unsigned int) * 8;
 	
@@ -62,6 +69,13 @@ static void insert_bloom_filter(unsigned int bloom_filter[], unsigned int num_ha
 	}
 }
 
+/****
+ * Check if a string has been inserted into a bloom filter
+ * bloom_filter: An array of ints. Each bit in each int is a slot in the bloom filter
+ * num_hashes: Number of hash functions
+ * num_bits: Number of slots in the bloom filter
+ * return: 1 if string has been inserted. 0 if string has not been inserted
+ ****/
 static unsigned int search_bloom_filter(unsigned int bloom_filter[], unsigned int num_hashes, unsigned int num_bits, char str[]) {
 	unsigned int int_bit_size = sizeof(unsigned int) * 8;
 	
@@ -77,6 +91,10 @@ static unsigned int search_bloom_filter(unsigned int bloom_filter[], unsigned in
 	return 1;
 }
 
+/****
+ * Configure TLS client for connection with a server, but does not connect to server yet
+ * return: A struct tls* that has been configured for a TLS connection with a server
+ ****/
 static struct tls* setupTLSClient() {
 	struct tls_config *cfg = NULL;
         struct tls *ctx = NULL;
@@ -119,22 +137,30 @@ static void kidhandler(int signum) {
 
 int main(int argc, char *argv[])
 {
-	if (argc != 4 || strcmp(argv[1], "-port") != 0)
+	if (argc != 4 || strcmp(argv[1], "-port") != 0)			// Check if executable is used properly
                 usage();
 
+	/**** Create bloom filters for each proxy  ****/
 	unsigned int bloom_filters[NUM_PROXIES][NUM_BLOOM_INTS];
 	memset(bloom_filters, 0, sizeof(bloom_filters));
+	printf("Created bloom filters for blacklisted objects for each proxy server\n");
+	printf("\n");
+	/**** End create bloom filters for each proxy ****/
 
+	/**** Insert blacklisted objects into bloom filters for their respective proxy servers ****/
 	char blacklist_filename[255];
 	strcpy(blacklist_filename, PROXY_DIR);
 	strcat(blacklist_filename, BLACKLIST_FILENAME);
+	
 	FILE *blacklist;
 	blacklist = fopen(blacklist_filename, "r");
 
 	printf("Entering blacklisted objects into bloom filter:\n");
 	char blacklisted_object[255];
 	memset(blacklisted_object, 0, sizeof(blacklisted_object));
+	
 	while (fscanf(blacklist, "%s", blacklisted_object) > 0) {
+		/**** Rendezvous hashing to select which proxy's bloom filter the object will be entered into ****/
 	        uint32_t hashes[NUM_PROXIES];
 		unsigned int i;
 		for (i = 0; i < NUM_PROXIES; i++) {                     // Calculate hashes for object_name.PROXY_NAMES[i]
@@ -151,14 +177,17 @@ int main(int argc, char *argv[])
                         if (hashes[i] > hashes[max_index])
                                 max_index = i;
                 }
+		/**** End rendezvous hashing to select which proxy's bloom filter the object will be entered into ****/
+
 		insert_bloom_filter(&bloom_filters[max_index][0], NUM_BLOOM_HASHES, NUM_BLOOM_BITS, blacklisted_object);		
 		printf("Entered %s into proxy %s's bloom filter\n", blacklisted_object, PROXY_NAMES[max_index]);
 	        printf("\n");
 		memset(blacklisted_object, 0, sizeof(blacklisted_object));
 	}
 	fclose(blacklist);
-	printf("\n");
+	/**** End insert blacklisted objects into bloom filters for their respective proxy servers ****/
 
+	/**** Configure TLS connection to client ****/
 	struct tls_config *cfg = NULL;
 	struct tls *ctx = NULL, *cctx = NULL;
 	uint8_t *mem;
@@ -197,8 +226,9 @@ int main(int argc, char *argv[])
 	if (tls_configure(ctx, cfg) != 0)
 		err(1, "tls_configure: %s", tls_error(ctx));
 	printf("Configured TLS proxy server with TLS config\n");
+	/**** End configure TLS connection to client ****/
 
-
+	/**** Configure TCP connection with client ****/
 	struct sockaddr_in sockname, client;
 	char *ep;
 	struct sigaction sa;
@@ -265,15 +295,18 @@ int main(int argc, char *argv[])
         if (sigaction(SIGCHLD, &sa, NULL) == -1)
                 err(1, "sigaction failed");
 
-
 	printf("Proxy server up and listening for connections on port %u\n", port);
+	/**** End configure TCP connection with client ****/
+
 	for(;;) {
+		/**** TCP connection with client ****/
 		int clientsd;
 		clientlen = sizeof(&client);
 		clientsd = accept(sd, (struct sockaddr *)&client, &clientlen);
 		if (clientsd == -1)
 			err(1, "accept failed");
-
+		/**** TCP connection with client ****/
+	
 		/*
 		 * We fork child to deal with each connection, this way more
 		 * than one client can connect to us and get served at any one
@@ -285,11 +318,14 @@ int main(int argc, char *argv[])
 		     err(1, "fork failed");
 
 		if(pid == 0) {
+			/**** TLS connection with client ****/
 			if (tls_accept_socket(ctx, &cctx, clientsd) != 0)
 				err(1, "tls_accept_socket: %s", tls_error(ctx));
 			printf("Accepted TLS socket\n");
-			printf("\n");
+			printf("\n");	
+			/**** End TLS connection with client ****/
 
+			/**** Receive request for object from client ****/
 			char request[255];
 			char *proxy_name;
 			char *object_name;
@@ -301,20 +337,24 @@ int main(int argc, char *argv[])
 			proxy_name = strtok(request, " ");
 			object_name = strtok(NULL, " ");
 			printf("Received request for proxy server %s for %s\n", proxy_name, object_name); 
+			/**** End receive request for object from client ****/
 
+			/**** Check respective proxy's blacklist for object ****/
 			unsigned int filter_index;
-			for (filter_index = 0; filter_index < NUM_PROXIES; filter_index++) {
+			for (filter_index = 0; filter_index < NUM_PROXIES; filter_index++) {		// Check if requested proxy server is in list
 				if (strcmp(PROXY_NAMES[filter_index], proxy_name) == 0)
 					break;
 			}
 			
 			if (search_bloom_filter(&bloom_filters[filter_index][0], NUM_BLOOM_HASHES, NUM_BLOOM_BITS, object_name) == 1) {
-				char deny[] = "****black-listed****\n";
+				char deny[] = "****black-listed****\n";					// Requested object was blacklisted
 				if (tls_write(cctx, deny, strlen(deny)) < 0)
 					err(1, "tls_write: %s", tls_error(cctx));
 				printf("Request was for black-listed object %s. Denied request\n", object_name);
 				printf("\n");
+			/**** End check respective proxy's blacklist for object ****/
 			} else {
+				/**** Send requested object to client ****/
 				FILE *fp;
 				char filename[255];
 				char content[255];
@@ -323,7 +363,11 @@ int main(int argc, char *argv[])
 				strcpy(filename, PROXY_DIR);
 				strcat(filename, object_name);
 
+				/**** Get requested object from server if object is not in proxy server's cache ****/
 				if ((fp = fopen(filename, "r")) == NULL) {
+					printf("Requested object is not in proxy server cache. Requesting object from server\n");
+					printf("\n");
+
 					char *server_name;
 					char *server_port;
 
@@ -332,7 +376,6 @@ int main(int argc, char *argv[])
 					server_port = strtok(NULL, ":");
 
 					struct tls *server_ctx = setupTLSClient();
-					printf("%s | %s\n", server_name, server_port);
 					if (tls_connect(server_ctx, server_name, server_port) != 0)
 			                        err(1, "tls_connect: %s", tls_error(ctx));
                 			printf("Connected to server\n");
@@ -342,6 +385,7 @@ int main(int argc, char *argv[])
 			                        err(1, "tls_write: %s", tls_error(ctx));
 			                printf("Sent request to server %s for %s\n", server_name, object_name);
 			
+					/**** Put requested object into proxy server's cache  ****/
 					fp = fopen(filename, "a+");
 					char response[255];
 					memset(response, 0, sizeof(response));
@@ -351,9 +395,14 @@ int main(int argc, char *argv[])
 			                        printf("%s", response);
 			                        memset(response, 0, sizeof(response));
 			                }
+					printf("\n");
+					printf("Put %s in proxy %s's cache\n", object_name, proxy_name);
+					/**** End put requested object into proxy server's cache  ****/
+
 			                fseek(fp, 0, SEEK_SET);
 					printf("\n");
 				}
+				/**** End get requested object from server if object is not in proxy server's cache ****/
 	
 				printf("Sent file content:\n");
 				while (fread(content, sizeof(char), sizeof(content), fp) > 0) {
@@ -364,8 +413,10 @@ int main(int argc, char *argv[])
 				}
 				fclose(fp);
 				printf("\n");
+				/**** End send requested object to client ****/
 			}
 
+			/**** Close TLS connection to client ****/
 			if (tls_close(cctx) != 0)
 				err(1, "tls_close: %s", tls_error(cctx));
 			printf("Closed TLS client\n");
@@ -381,6 +432,7 @@ int main(int argc, char *argv[])
 			printf("\n");
 
 			close(clientsd);
+			/**** End close TLS connection to client ****/
 
 			exit(0);
 		}

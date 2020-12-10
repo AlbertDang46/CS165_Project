@@ -46,7 +46,7 @@ static void usage()
 
 int main(int argc, char *argv[])
 {
-	if (argc != 4 || strcmp(argv[1], "-port") != 0)
+	if (argc != 4 || strcmp(argv[1], "-port") != 0)			// Check if executable is used properly
         	usage();
 
 	FILE *fp;
@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
                 err(1, "File not found!");
 
         while (fscanf(fp, "%s", object_name) > 0) {			// New TLS connection for each object requested in file	
+		/**** TLS connection to proxy server ****/
 		struct tls_config *cfg = NULL;
 		struct tls *ctx = NULL;
 	
@@ -89,7 +90,9 @@ int main(int argc, char *argv[])
 			err(1, "tls_connect: %s", tls_error(ctx));
 		printf("Connected to proxy server\n");
 		printf("\n");
+		/**** End TLS connection to proxy server  ****/
 
+		/**** Rendezvous hashing with proxy names  ****/
 		printf("Computing hashes for each objectname|proxyname\n");
 		unsigned int i;
 		for (i = 0; i < NUM_PROXIES; i++) {			// Calculate hashes for object_name.PROXY_NAMES[i]
@@ -107,7 +110,9 @@ int main(int argc, char *argv[])
 			if (hashes[i] > hashes[max_index])
 				max_index = i;
 		}
+		/**** End rendezvous hashing with proxy names  ****/
 
+		/**** Send request for object to selected proxy  ****/
 		strcpy(request, PROXY_NAMES[max_index]);		// Create request with form "PROXY_NAME OBJECT_NAME"
 		strcat(request, " ");
 		strcat(request, object_name); 
@@ -122,7 +127,9 @@ int main(int argc, char *argv[])
 			memset(response, 0, sizeof(response));
 		}
 		printf("\n");
+		/**** End send request for object to selected proxy ****/
 
+		/**** Close TLS connection with proxy server ****/
 		if (tls_close(ctx) != 0)
 			err(1, "tls_close: %s", tls_error(ctx));
 		printf("Closed TLS client\n");
@@ -133,8 +140,9 @@ int main(int argc, char *argv[])
 		tls_config_free(cfg);
 		printf("Freed TLS config\n");
 		printf("\n");
+		/**** End close TLS connection with proxy server ****/
 
-		memset(object_name, 0, sizeof(object_name));
+		memset(object_name, 0, sizeof(object_name));		// Reset object_name, request, and response for next object
        		memset(request, 0, sizeof(request));
                 memset(response, 0, sizeof(response));
         }

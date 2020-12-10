@@ -41,7 +41,7 @@
 #include <tls.h>
 
 
-const char server_dir[] = "./server_files/";
+const char SERVER_DIR[] = "./server_files/";
 
 static void usage()
 {
@@ -58,9 +58,10 @@ static void kidhandler(int signum) {
 
 int main(int argc,  char *argv[])
 {
-	if (argc != 3 || strcmp(argv[1], "-port") != 0)
+	if (argc != 3 || strcmp(argv[1], "-port") != 0)				// Check if executable is used properly
                 usage();
 	
+	/**** Configure TLS connection to proxy server ****/
 	struct tls_config *cfg = NULL;
 	struct tls *ctx = NULL, *cctx = NULL;
 	uint8_t *mem;
@@ -99,8 +100,9 @@ int main(int argc,  char *argv[])
 	if (tls_configure(ctx, cfg) != 0)
 		err(1, "tls_configure: %s", tls_error(ctx));
 	printf("Configured TLS server with TLS config\n");
+	/**** End configure TLS connection to proxy server ****/
 
-
+	/**** Configure TCP connection with proxy server ****/
 	struct sockaddr_in sockname, client;
 	char *ep;
 	struct sigaction sa;
@@ -167,14 +169,17 @@ int main(int argc,  char *argv[])
         if (sigaction(SIGCHLD, &sa, NULL) == -1)
                 err(1, "sigaction failed");
 
-
 	printf("Server up and listening for connections on port %u\n", port);
+	/**** End configure TCP connection with proxy server ****/	
+
 	for(;;) {
+		/**** TCP connection with proxy server ****/
 		int clientsd;
 		clientlen = sizeof(&client);
 		clientsd = accept(sd, (struct sockaddr *)&client, &clientlen);
 		if (clientsd == -1)
 			err(1, "accept failed");
+		/**** End TCP connection with proxy server ****/
 
 		/*
 		 * We fork child to deal with each connection, this way more
@@ -187,11 +192,14 @@ int main(int argc,  char *argv[])
 		     err(1, "fork failed");
 
 		if(pid == 0) {
+			/**** TLS connection with proxy server ****/
 			if (tls_accept_socket(ctx, &cctx, clientsd) != 0)
 				err(1, "tls_accept_socket: %s", tls_error(ctx));
 			printf("Accepted TLS socket\n");
 			printf("\n");
-
+			/**** TLS connection with proxy server ****/
+			
+			/**** Receive request for object from proxy server ****/
 			char request[255];
 			memset(request, 0, sizeof(request));
 			
@@ -199,13 +207,15 @@ int main(int argc,  char *argv[])
 				err(1, "tls_read: %s", tls_error(cctx));
 			
 			printf("Received request for server for %s\n", request); 
+			/**** End receive request for object from proxy server ****/
 
+			/**** Send requested object to client ****/
 			FILE *fp;
 			char filename[255];
 			char content[255];
 			memset(filename, 0, sizeof(filename));
 			memset(content, 0, sizeof(content));
-			strcpy(filename, server_dir);
+			strcpy(filename, SERVER_DIR);
 			strcat(filename, request);
 	 
 			if ((fp = fopen(filename, "r")) == NULL)
@@ -220,7 +230,9 @@ int main(int argc,  char *argv[])
 			}
 			fclose(fp);
 			printf("\n");	
+			/**** End send requested object to client ****/
 
+			/**** Close TLS connection to proxy server ****/
 			if (tls_close(cctx) != 0)
 				err(1, "tls_close: %s", tls_error(cctx));
 			printf("Closed TLS client\n");
@@ -236,6 +248,7 @@ int main(int argc,  char *argv[])
 			printf("\n");
 
 			close(clientsd);
+			/**** End close TLS connection to proxy server ****/
 
 			exit(0);
 		}
