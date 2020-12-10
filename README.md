@@ -1,85 +1,47 @@
-## TCPSocket_iii -- TLS Cache
-------------------------
+To compile:
+-Replace /src/ in original TCPSocket_iii with the /src/ in this folder
+-Run make in /build/ 
+-Executables "server", "proxy", and "client" will appear in /build/src/
 
-This repository contains the starter code for the CS165 project. The directory structure is as follows:
-```
-certificates/	// Contains CA and server certificates.
-scripts/	// Helper scripts.
-src/		// Client and Server code. Add your code here.
-cmake/		// CMake find script. 
-extern/		// Required third party tools and libraries- LibreSSL & CMake.
-licenses/	// Open source licenses for code used.
-```
+To run:
+-You must make a folder called "server_files" in the same directory the executable "server" is in. "server_files" is the server cache.
+	-an example "server_files" folder will be provided
+-You must make a folder called "proxy_files" in the same directory the executable "proxy" is in. "proxy_files" is a shared cache for the proxy servers.
+	-You must make a file called "Blacklisted_Objects" in "proxy_files". "Blacklisted_Objects" contains all the blacklisted objects separated by new lines
+	-an example "proxy_files" folder will be provided
+-You must have "root.pem" in the same directory the exectuables "client", "proxy", and "server" are in
+	-an example "root.pem" will be provided
+-You must have "server.crt" and "server.key" in the same directory the executables "proxy" and "server" are in
+	-an example "server.crt" and "server.key" will be provided 
+-Run "server" with the command ./server -port portnumber
+	-portnumber is the port "server" listens on
+-Run "proxy" with the command ./proxy -port portnumber -servername:serverportnumber
+	-portnumber is the port "proxy" listens on
+	-servername is the name/IP address of the server. Use "localhost" for servername
+	-serverportnumber is the port "server" listens on
+-Run "client" with the command ./client -port proxyportnumber filename
+	-proxyportnumber is the port "proxy" listens on
+	-filename is the name of the file that contains all the objects that "client" will be requesting from "proxy"
+		-objects must be separated by new lines
+		-an example "object_list.txt" will be provided
+-All provided files are in /build/src/ including the compiled executables
 
+Project details:
+-Murmur3 was used as the hash function for rendezvous hashing and for the bloom filters
+-Six proxy servers are simulated in the executable "proxy"
+-Each bloom filter is an array of 303658 bits with five hash functions
+	-This configuration results in a 0.9% chance of false positives with 30000 items in the bloom filter
+	-Each bloom filter is an array of ints. Each bit in each int is one slot in the bloom filter
 
-### Steps
--------------------------
-1. Download and extract the code.
-2. Run the following commands:
-```
-$ cd TCPSocket_iii
-$ source scripts/setup.sh
-
-Generate the server and client certificates
-$ cd certificates
-$ make
-```
-3. The plaintext server and client can be used as follows:
-```
-$ cd TCPSocket_iii
-
-Run the server:
-$ ./build/src/server 9999
-
-Run the client (in another terminal):
-$ ./build/src/client 127.0.0.1 9999
-```
-
-### How to build and run code
---------------------------
-1. Add your code in `src/client` or `src/server`. 
-2. Go to `build/`
-3. Run `make`
-
-
-### Scripts included
---------------------------
-1. `setup.sh` should be run exactly once after you have downloaded code, and never again. It extracts and builds the dependencies in extern/, and builds and links the code in src/ with LibreSSL.
-2. `reset.sh` reverts the directory to its initial state. It does not touch `src/` or `certificates/`. Run `make clean` in `certificates/` to delete the generated certificates.
-
-
-### FAQ
---------------------------
-1. How to generate CA, server and client certificates?
-
-Go to `certificates/` and run `make` to generate all three certificates. 
-```
-root.pem	// Root CA certificate, the root of trust
-server.crt	// Server's certificate, signed by the root CA using an intermediate CA certificate 
-server.key	// Server's private key
-```
-
-2. The given starter code has only two files, `server/server.c` and `client/client.c`. I want to add another file to implement the proxy. How do I do it?
-
-This project uses CMake to build code, and therefore has a `CMakeLists.txt` file located in `src/`. You can read the file as follows:
-```
-set(CLIENT_SRC	client/client.c)	# The CLIENT_SRC variable holds the names of all files that are a part of client's implementation. This is a client that has only one file in its implementation.
-add_executable(client ${CLIENT_SRC})    # Tells CMake to compile all files listed in CLIENT_SRC into a binary named 'client'
-target_link_libraries(client LibreSSL::TLS) # Asks CMake to link our executable to libtls
-```
-If you want to split your client's code into multiple files, you can modify `src/CMakeLists.txt` as follows:
-```
-set(CLIENT_SRC client/client_1.c client/client_2.c)
-```
-Your code can be split into any number of files as necessary, but remember that they are all compiled to a single runnable binary. 
-If you want to create more binaries, you can copy the three lines explained above and change the variable and file names as necesary.
-
-
-### Useful(!) Resources 
---------------------------
-1. libTLS tutorial: https://github.com/bob-beck/libtls/blob/master/TUTORIAL.md
-2. Official libTLS documentation: https://man.openbsd.org/tls\_init.3
-3. LinuxConf AU 2017 slides: http://www.openbsd.org/papers/linuxconfau2017-libtls/
-4. On Certificate Authorities: https://jamielinux.com/docs/openssl-certificate-authority/introduction.html
-
-
+Project contributions:
+-Albert Dang
+	-Created bloom filters
+	-Inserting/searching bloom filters
+	-Reading/writing to server and proxy server caches
+	-Error checking
+-Jason Chan
+	-Set up TLS connections between client and proxy server, proxy server and server
+	-TLS certificates
+	-Rendezvous hashing
+	-Comments
+	-Logging
