@@ -38,7 +38,7 @@ $	(cd certificates/ && make clean) && (cd certificates/ && make) && (cd build/ &
 * run each of the following in a new terminal window, once again run all of these from the root directory
 ```
 $	./build/src/server -port 9999
-$	./build/src/proxy -port 9998 proxy_files/Blacklisted_Objects
+$	./build/src/proxy -port 9998 proxy_files/Blacklisted_Objects localhost
 $	./build/src/client -port 9998 server_files/File_1
 ```
 

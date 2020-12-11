@@ -137,7 +137,7 @@ static void kidhandler(int signum) {
 
 int main(int argc, char *argv[])
 {
-	if (argc != 4 || strcmp(argv[1], "-port") != 0)			// Check if executable is used properly
+	if (argc != 5 || strcmp(argv[1], "-port") != 0)			// Check if executable is used properly
                 usage();
 
 	/**** Create bloom filters for each proxy  ****/
