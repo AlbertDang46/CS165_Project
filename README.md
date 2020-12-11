@@ -29,7 +29,7 @@
 * All provided files are in /build/src/ including the compiled executables
 
 
-##Example compile and run:
+## Example compile and run:
 * runall of these from the root directory
 $	source scripts/setup.sh
 $	(cd certificates/ && make clean) && (cd certificates/ && make) && (cd build/ && make)
