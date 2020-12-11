@@ -11,10 +11,8 @@
 * You must make a folder called "proxy_files" in the same directory the executable "proxy" is in. "proxy_files" is a shared cache for the proxy servers.
 	* You must make a file called "Blacklisted_Objects" in "proxy_files". "Blacklisted_Objects" contains all the blacklisted objects separated by new lines
 	* an example "proxy_files" folder will be provided
-* You must have "root.pem" in the same directory the exectuables "client", "proxy", and "server" are in
-	* an example "root.pem" will be provided
-* You must have "server.crt" and "server.key" in the same directory the executables "proxy" and "server" are in
-	* an example "server.crt" and "server.key" will be provided 
+* You must have "root.pem", "server.crt", and "server.key" in /certificates/
+	* an example "root.pem", "server.crt", and "server.key" will be provided 
 * Run "server" with the command ./server -port portnumber
 	* portnumber is the port "server" listens on
 * Run "proxy" with the command ./proxy -port portnumber -servername:serverportnumber
@@ -27,6 +25,8 @@
 		* objects must be separated by new lines
 		* an example "object_list.txt" will be provided
 * All provided files are in /build/src/ including the compiled executables
+
+## Example compile and run:
 
 ## Project details:
 * Murmur3 was used as the hash function for rendezvous hashing and for the bloom filters

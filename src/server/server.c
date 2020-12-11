@@ -75,19 +75,19 @@ int main(int argc,  char *argv[])
 		err(1, "tls_config_new:");
 	printf("Got TLS config\n");
 
-	if ((mem = tls_load_file("root.pem", &mem_len, NULL)) == NULL)
+	if ((mem = tls_load_file("../../certificates/root.pem", &mem_len, NULL)) == NULL)
 		err(1, "tls_load_file(ca):");
 	if (tls_config_set_ca_mem(cfg, mem, mem_len) != 0)
 		err(1, "tls_config_set_ca_mem:");
 	printf("Set root certificate\n");
 
-	if ((mem = tls_load_file("server.crt", &mem_len, NULL)) == NULL)
+	if ((mem = tls_load_file("../../certificates/server.crt", &mem_len, NULL)) == NULL)
 		err(1, "tls_load_file(server):");
 	if (tls_config_set_cert_mem(cfg, mem, mem_len) != 0)
 		err(1, "tls_config_set_cert_mem:");
 	printf("Set server certificate\n");	
 
-	if ((mem = tls_load_file("server.key", &mem_len, NULL)) == NULL)
+	if ((mem = tls_load_file("../../certificates/server.key", &mem_len, NULL)) == NULL)
 		err(1, "tls_load_file(serverkey):");
 	if (tls_config_set_key_mem(cfg, mem, mem_len) != 0)
 		err(1, "tls_config_set_key_mem:");
