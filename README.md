@@ -12,7 +12,6 @@
 	* You must make a file called "Blacklisted_Objects" in "proxy_files". "Blacklisted_Objects" contains all the blacklisted objects separated by new lines
 	* an example "proxy_files" folder will be provided
 * You must have "root.pem", "server.crt", and "server.key" in /certificates/
-	* an example "root.pem", "server.crt", and "server.key" will be provided 
 * Run "server" with the command ./server -port portnumber
 	* portnumber is the port "server" listens on
 * Run "proxy" with the command ./proxy -port portnumber -servername:serverportnumber
@@ -24,7 +23,7 @@
 	* filename is the name of the file that contains all the objects that "client" will be requesting from "proxy"
 		* objects must be separated by new lines
 		* an example "object_list.txt" will be provided
-* All provided files are in /build/src/ including the compiled executables
+* All provided files are in /resources/
 
 ## Example compile and run:
 * Start from root of project folder
