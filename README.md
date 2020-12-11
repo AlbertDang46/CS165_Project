@@ -30,13 +30,17 @@
 
 
 ## Example compile and run:
-* runall of these from the root directory
+* run all of these from the root directory
+```
 $	source scripts/setup.sh
 $	(cd certificates/ && make clean) && (cd certificates/ && make) && (cd build/ && make)
-* run each of the following in a new terminal window
+```
+* run each of the following in a new terminal window, once again run all of these from the root directory
+```
 $	./build/src/server -port 9999
 $	./build/src/proxy -port 9998 proxy_files/Blacklisted_Objects
 $	./build/src/client -port 9998 server_files/File_1
+```
 
 
 ## Project details:
