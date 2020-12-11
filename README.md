@@ -28,6 +28,17 @@
 		* an example "object_list.txt" will be provided
 * All provided files are in /build/src/ including the compiled executables
 
+
+##Example compile and run:
+* runall of these from the root directory
+$	source scripts/setup.sh
+$	(cd certificates/ && make clean) && (cd certificates/ && make) && (cd build/ && make)
+* run each of the following in a new terminal window
+$	./build/src/server -port 9999
+$	./build/src/proxy -port 9998 proxy_files/Blacklisted_Objects
+$	./build/src/client -port 9998 server_files/File_1
+
+
 ## Project details:
 * Murmur3 was used as the hash function for rendezvous hashing and for the bloom filters
 * Six proxy servers are simulated in the executable "proxy"

@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 			err(1, "tls_config_new:");
 		printf("Got TLS config\n");
 	
-		if (tls_config_set_ca_file(cfg, "root.pem") != 0)
+		if (tls_config_set_ca_file(cfg, "././certificates/root.pem") != 0)
 			err(1, "tls_config_set_ca_file:");
 		printf("Set root certificate\n");
 	
