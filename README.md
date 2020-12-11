@@ -32,9 +32,9 @@
 2. run "make clean" in /certificates/
 3. run "make" in /certificates/
 4. run "make" in /build/
-5. cp -r /resources/server_files /build/src/
-6. cp -r /resources/proxy_files /build/src/
-7. cp /resources/object_list.txt /build/src/
+5. cp -r resources/server_files /build/src/
+6. cp -r resources/proxy_files /build/src/
+7. cp resources/object_list.txt /build/src/
 8. In /build/src/ in three different terminal windows run:
 	1. ./server -port 9999
 	2. ./proxy -port 9990 -localhost:9999
